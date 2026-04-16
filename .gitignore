@@ -1,0 +1,26 @@
+# 🔹 Go build outputs
+main
+*.exe
+*.out
+*.test
+
+# 🔹 Go workspace files
+go.work
+go.work.sum
+
+# 🔹 Vendor (optional, if not committing)
+vendor/
+
+# 🔹 Logs
+*.log
+
+# 🔹 OS files
+.DS_Store
+Thumbs.db
+
+# 🔹 IDE files
+.vscode/
+.idea/
+
+# 🔹 Environment files
+.env

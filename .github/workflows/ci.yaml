@@ -1,0 +1,122 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - '**'   # any branch
+    paths:
+      - '**.go'
+      - 'static/**'
+      - 'Dockerfile'
+    paths-ignore:
+      - 'helm/**'
+      - 'k8s/**'
+      - 'README.md'
+
+jobs:
+
+# -------------------------------
+# CI: Build + Test + Lint
+# -------------------------------
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Build
+      run: go build -o go-web-app
+
+    - name: Test
+      run: go test ./...
+
+  code-quality:
+    runs-on: ubuntu-latest
+    needs: build-test
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+
+# -------------------------------
+# CD: Only after merge (push)
+# -------------------------------
+  docker-build-push:
+    runs-on: ubuntu-latest
+    needs: [build-test, code-quality]
+
+    # 👇 Only run when NOT a PR (i.e., merged or direct push)
+    if: github.event_name == 'push'
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build Docker Image
+      run: |
+        docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/go-web-app:${{ github.run_id }} .
+
+# -------------------------------
+# Trivy Scan (Image Security)
+# -------------------------------
+    - name: Run Trivy Scan
+      uses: aquasecurity/trivy-action@0.20.0
+      with:
+        image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/go-web-app:${{ github.run_id }}
+        format: table
+        exit-code: 1
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        severity: 'CRITICAL,HIGH'
+
+# -------------------------------
+# Push only if scan passes
+# -------------------------------
+    - name: Push Image
+      run: |
+        docker push ${{ secrets.DOCKERHUB_USERNAME }}/go-web-app:${{ github.run_id }}
+
+# -------------------------------
+# Update Helm Chart
+# -------------------------------
+  update-helm:
+    runs-on: ubuntu-latest
+    needs: docker-build-push
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.TOKEN }}
+
+    - name: Update Helm values
+      run: |
+        sed -i 's/tag: .*/tag: "${{ github.run_id }}"/' helm/go-web-app-chart/values.yaml
+
+    - name: Commit and push
+      run: |
+        git config user.name "Jibin Joseph"
+        git config user.email "jibin@gmail.com"
+        git add helm/go-web-app-chart/values.yaml
+        git commit -m "Update image tag in Helm chart"
+        git push

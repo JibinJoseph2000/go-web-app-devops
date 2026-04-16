@@ -1,0 +1,26 @@
+# Version control
+.git
+.gitignore
+
+# Build artifacts
+bin/
+dist/
+*.exe
+*.out
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+
+# Docker files
+Dockerfile
+.dockerignore
+
+# Environment files (important!)
+.env
+
+# IDE files
+.vscode
+.idea
