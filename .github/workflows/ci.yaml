@@ -8,10 +8,6 @@ on:
       - '**.go'
       - 'static/**'
       - 'Dockerfile'
-    paths-ignore:
-      - 'helm/**'
-      - 'k8s/**'
-      - 'README.md'
 
 jobs:
 
