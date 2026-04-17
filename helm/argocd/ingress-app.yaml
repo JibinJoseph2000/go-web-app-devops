@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/JibinJoseph2000/go-web-app-devops.git
     targetRevision: main
-    path: platform/ingress-nginx
+    path: helm/platform/ingress-nginx
 
     helm:
       chart: ingress-nginx
